@@ -8,7 +8,16 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
 
 }
 
+// Called by the host
 int main (int argc, char** argv) {
-	// rmandel(nth, xl, xr, yb, yt, inc, maxiters, sched, chunksize);
+	// 1. Declare and allocate host and device memory
+	
+	// 2. Initialize host data
+	
+	// 3. Transfer data from host to device
+	
+	// 4. Execute one or more kernels
+	
+	// 5. Transfer results from device to host
 	return 0;
 }
