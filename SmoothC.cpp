@@ -41,6 +41,7 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
 
 }
 
+<<<<<<< HEAD
 //Kernel function passed the correct portion of x, y, n, h, and z = x[t]
 __global__ void findY(float *x, float *y, int n, float h, float z, int zLoc, float *returnVal) {
 	// int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -71,3 +72,18 @@ int main (int argc, char** argv) {
 	return 0;
 
 }
+=======
+// Called by the host
+int main (int argc, char** argv) {
+	// 1. Declare and allocate host and device memory
+	
+	// 2. Initialize host data
+	
+	// 3. Transfer data from host to device
+	
+	// 4. Execute one or more kernels
+	
+	// 5. Transfer results from device to host
+	return 0;
+}
+>>>>>>> ab08891e5c467836913fc7cb321258d7ccfa760f
