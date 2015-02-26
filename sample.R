@@ -1,11 +1,12 @@
 
-x <- 1:40
-y <- 41:80
-h <- 7
+x <- 1:10
+y <- 11:20
+h <- 3
 
 smoother <- function(x,y,h) {
-  meanclose <- function(t) 
+  meanclose <- function(t){ 
     mean(y[abs(x-t) < h])
+  }
   sapply(x,meanclose)
 }
 
