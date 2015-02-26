@@ -10,13 +10,16 @@ using namespace std;
 
 void smoothc(float *x, float *y, float *m, int n, float h) {
 	// qsort(x,n,sizeof(float),compare_floats);
-	dim3 dimGrid(GRID_SIZE, GRID_SIZE, 1);
-	dim3 dimBlock(GRID_SIZE, GRID_SIZE, 1);
+	// dim3 dimGrid(GRID_SIZE, GRID_SIZE, 1);
+	// dim3 dimBlock(GRID_SIZE, GRID_SIZE, 1);
 	
+	dim3 dimGrid(1, 1);
+	dim3 dimBlock(1, 1, 1);
+
 	// Size of x and y: n / SHARED_MEM / 2 = 
 	// The rest of the params: - 32
 	// Combined this equals 16384 bytes
-	int chunksize = (n / SHARED_MEM / 2 ) - 32;
+	int chunksize = (SHARED_MEM / 2 ) - 32;
 
 	float *xChunk;
 	float *yChunk;
