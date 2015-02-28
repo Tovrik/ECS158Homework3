@@ -13,20 +13,21 @@ __global__ void findY(float *x, float *y, int n, float h, float z, int zLoc, flo
 	// int row = blockIdx.y * blockDim.y + threadIdx.y;
 
 	__shared__ float sum;
-	//sum = 0;
-	float absVal = 0;
+	sum = 0;
+	// float absVal = 0;
 	int count = 0;
 	for(int i = 0; i < n; i++) {
-		absVal = abs(x[i] - z);
-		if(absVal < h) {
+		// absVal = abs(x[i] - z);
+		if(abs(x[i] - z) < h) {
 			//sum = atomicAdd(&sum, y[zLoc]);
-		 	sum += y[zLoc];
+		 	sum += y[i];
+		 	// cuPrintf("sum = %d\n", sum);
 		 	count++;
 		}
 	}
-		*returnVal = sum/count;
-		sum = 0;
-		count = 0;
+	*returnVal = sum / count;
+	// sum = 0;
+	// count = 0;
 }
 
 void smoothc(float *x, float *y, float *m, int n, float h) {
@@ -34,9 +35,7 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
 	dim3 dimGrid(1, 1);
 	dim3 dimBlock(1, 1, 1);
 	
-	// Size of x and y: n / SHARED_MEM / 2 = 
-	// The rest of the params: - 32
-	// Combined this equals 16384 bytes
+
 	int chunksize = (SHARED_MEM / 2) - 32;
 
 	float *xChunk;
@@ -44,26 +43,17 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
 	float *mdev;
 	//min size of x is 512 bytes or 64 entries
 	int msize = chunksize * sizeof(float);
-	//printf("Got This far!\n");
 	cudaMalloc((void **) &xChunk, 80);
 	cudaMalloc((void **) &yChunk, 80);
 	cudaMalloc((void **) &mdev, 80);
-	printf("Got past the Allocs!\n");
-	// cudaError_t err2 = cudaGetLastError();
-	// if(err2 != cudaSuccess) printf("%s\n", cudaGetErrorString(err2));
-	// dst 		- Destination memory address
-	// src 		- Source memory address
-	// count 	- Size in bytes to copy
-	// kind 	- Type of transfer
-	// cudaMemcpy(dst, src, count, kind);
+
 
 	
 
 	for(int i = 0; i < n; i++) {
-		cout<<"got this far? ("<<i<<")"<<endl;
 		cudaMemcpy(xChunk, x, 80, cudaMemcpyHostToDevice);
 		cudaMemcpy(yChunk, y, 80, cudaMemcpyHostToDevice);
-		findY<<<dimGrid, dimBlock>>>(xChunk, yChunk, chunksize, h, x[i], i, &mdev[i]);
+		findY<<<dimGrid, dimBlock>>>(xChunk, yChunk, 10, h, x[i], i, &mdev[i]);
 	}
 	cudaMemcpy(m, mdev, 80, cudaMemcpyDeviceToHost);
 	cudaFree(xChunk);
@@ -80,7 +70,7 @@ int main (int argc, char** argv) {
 	float m[10];
 	for(int i = 0; i < 10; i++)
 		cout << m[i] << endl;
-	smoothc(x,y,m,10,1);
+	smoothc(x,y,m,10,3);
 	cout<<"**********RETURN VALUES:***********"<<endl;
 	for(int i = 0; i < 10; i++)
 		cout << m[i] << endl;
