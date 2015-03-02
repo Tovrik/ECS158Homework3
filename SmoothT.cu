@@ -9,18 +9,18 @@ using namespace std;
 
 
 void smootht(float *x, float *y, float *m, int n, float h) {
-	
+  
 }
 
 int main (int argc, char** argv) {
   int n = 10;
-	// Host memory vectors
-	thrust:: host_vector<float> x(10);
-	thrust:: host_vector<float> y(10);
-	thrust:: host_vector<float> averageArrays(10);
+  // Host memory vectors
+  thrust:: host_vector<float> x(10);
+  thrust:: host_vector<float> y(10);
+  thrust:: host_vector<float> averageArrays(10);
 
   // Populate the arrays
-	for(int i = 0, j = n; i < n; i++, j++) {
+  for(int i = 0, j = n; i < n; i++, j++) {
     x[i] = i + 1;
     y[i] = j + 1;
   }
