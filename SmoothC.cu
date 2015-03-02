@@ -7,27 +7,39 @@
 using namespace std;
 
 __global__ void smoothc(float *x, float *y, float *m, int n, float h) {
-  int blockIndex = threadIdx.x;
-  //printf("blockDim.x = %d\n", blockDim.x);
+	/*
+	blockDim.x => gives the number of threads in a block, in the particular direction
+	gridDim.x => gives the number of blocks in a grid
+	*/
+
+  int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+  printf("threadIdx.x = %d\n", threadIdx.x);
+  printf("blockDim.x = %d\n", blockDim.x);
+
   float sum = 0;
   int count = 0;
 
-  for(int i = 0; i < blockDim.x; i++) {
+  for(int i = 0; i < blockDim.x*gridDim.x; i++) {
     if(fabsf(x[blockIndex] - x[i]) < h) {
        //printf("x[blockIndex] = %d and x[i] = %d\n", x[blockIndex], x[i]);
        sum = sum + y[i];
        count = count + 1;
     }
   }
-  // __syncthreads();  
+  //__syncthreads(); 
+  printf("sum = %f\n", sum);
+  printf("count = %d\n", count);
   m[blockIndex] = sum / count;
 }
 
 int main(int argc, char** argv) {
+  cudaDeviceProp Props ;
+  cudaGetDeviceProperties(&Props , 0) ;
   // Declare and allocate host and device memory
 
   // Host memory arrays
-  int n = 10;
+  int n = 5000;
   float h = 2;
   float x[n];
   float y[n];
@@ -44,9 +56,9 @@ int main(int argc, char** argv) {
   float *avgsPointer;
 
   // Allocate memory on the device
-  cudaMalloc((void**) &xchunk, sizeof(float) * 100);
-  cudaMalloc((void**) &ychunk, sizeof(float) * 100);
-  cudaMalloc((void**) &avgsPointer, sizeof(float) * 100);
+  cudaMalloc((void**) &xchunk, sizeof(float) * n);
+  cudaMalloc((void**) &ychunk, sizeof(float) * n);
+  cudaMalloc((void**) &avgsPointer, sizeof(float) * n);
 
   // Transfer the host arrays to Device
   cudaMemcpy(xchunk, x, sizeof(float) * n, cudaMemcpyHostToDevice);
@@ -54,11 +66,26 @@ int main(int argc, char** argv) {
   cudaMemcpy(avgsPointer, averageArrays, sizeof(float)* n, cudaMemcpyHostToDevice);
 
   // Set up Parameters for threads structure
-  dim3 dimGrid(n, 1);
-  dim3 dimBlock(1, 1, 1);
+  // dim3 dimGrid(n, 1);
+  // dim3 dimBlock(1, 1, 1);
+
+  int totalBlocks = 0;
+  int threads_per_block = 0;
+
+  if(n < (Props.maxThreadsPerBlock-1) ){
+  	totalBlocks = 1;
+  	threads_per_block = n;
+  }
+  else {
+  	totalBlocks = (int)(ceil((float)n / (Props.maxThreadsPerBlock/2) ));
+  	threads_per_block = Props.maxThreadsPerBlock / 2;
+  }
+  printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
+  printf("total blocks = %d\n", totalBlocks);
+  printf("threads/block = %d\n", threads_per_block);
 
   // Invoke the kernel
-  smoothc <<<1, n>>> (xchunk, ychunk, avgsPointer, n, h);
+  smoothc <<<totalBlocks, threads_per_block>>> (xchunk, ychunk, avgsPointer, n, h);
   // Wait for kernel to finish()
   cudaThreadSynchronize();
   // Copy from device to host. 
