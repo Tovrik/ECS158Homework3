@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   int totalBlocks = 0;
   int threads_per_block = 0;
   int totalSharedMemProgram = Props.totalGlobalMem / 2;
-  int remaining = (24 * n) + 8;
+  int remaining = (24 * n) + 16;
   int chunks = ceil((float) remaining / totalSharedMemProgram);
   int offset = 0;
   bool it_fits = false;
