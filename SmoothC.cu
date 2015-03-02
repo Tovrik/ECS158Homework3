@@ -14,13 +14,13 @@ __global__ void smoothc(float *x, float *y, float *m, int n, float h) {
 
   int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-  printf("threadIdx.x = %d\n", threadIdx.x);
-  printf("blockDim.x = %d\n", blockDim.x);
+  //printf("threadIdx.x = %d\n", threadIdx.x);
+  //printf("blockDim.x = %d\n", blockDim.x);
 
   float sum = 0;
   int count = 0;
 
-  for(int i = 0; i < blockDim.x*gridDim.x; i++) {
+  for(int i = 0; i < n; i++) {
     if(fabsf(x[blockIndex] - x[i]) < h) {
        //printf("x[blockIndex] = %d and x[i] = %d\n", x[blockIndex], x[i]);
        sum = sum + y[i];
@@ -28,8 +28,8 @@ __global__ void smoothc(float *x, float *y, float *m, int n, float h) {
     }
   }
   //__syncthreads(); 
-  printf("sum = %f\n", sum);
-  printf("count = %d\n", count);
+  //printf("sum = %f\n", sum);
+  //printf("count = %d\n", count);
   m[blockIndex] = sum / count;
 }
 
@@ -39,16 +39,20 @@ int main(int argc, char** argv) {
   // Declare and allocate host and device memory
 
   // Host memory arrays
-  int n = 5000;
+  int n = 2500;
   float h = 2;
   float x[n];
   float y[n];
   float averageArrays[n];   
   memset(averageArrays, 0, sizeof(averageArrays));
-  for(int i = 0, j = n; i < n; i++, j++) {
-    x[i] = i + 1;
-    y[i] = j + 1;
+  for(int i = 1000, j = n; i < n+1000; i++, j++) {
+    x[i-1000] = i + 1;
+    y[i-1000] = j + 1;
   }
+  // printf("x[0] = %f\n", x[0]);
+  // printf("x[2499] = %f\n", x[2499]);
+  // printf("y[0] = %f\n", y[0]);
+  // printf("y[2499] = %f\n", y[2499]);
 
   // Device Memory pointers
   float *xchunk;
