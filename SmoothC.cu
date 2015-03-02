@@ -1,79 +1,75 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda.h>
 #include <iostream>
 #include <cmath>
-#include <cuda.h>
+#include <string.h>
 using namespace std;
 
-#define GRID_SIZE 32
-#define SHARED_MEM 16384
+__global__ void smoothc(float *x, float *y, float *m, int n, float h) {
+  int blockIndex = threadIdx.x;
+  //printf("blockDim.x = %d\n", blockDim.x);
+  float sum = 0;
+  int count = 0;
 
-__global__ void findY(float *x, float *y, int n, float h, float z, int zLoc, float *returnVal) {
-	// int col = blockIdx.x * blockDim.x + threadIdx.x;
-	// int row = blockIdx.y * blockDim.y + threadIdx.y;
-
-	__shared__ float sum;
-	sum = 0;
-	// float absVal = 0;
-	int count = 0;
-	for(int i = 0; i < n; i++) {
-		// absVal = abs(x[i] - z);
-		if(abs(x[i] - z) < h) {
-			//sum = atomicAdd(&sum, y[zLoc]);
-		 	sum += y[i];
-		 	// cuPrintf("sum = %d\n", sum);
-		 	count++;
-		}
-	}
-	*returnVal = sum / count;
-	// sum = 0;
-	// count = 0;
+  for(int i = 0; i < blockDim.x; i++) {
+    if(fabsf(x[blockIndex] - x[i]) < h) {
+       //printf("x[blockIndex] = %d and x[i] = %d\n", x[blockIndex], x[i]);
+       sum = sum + y[i];
+       count = count + 1;
+    }
+  }
+  // __syncthreads();  
+  m[blockIndex] = sum / count;
 }
 
-void smoothc(float *x, float *y, float *m, int n, float h) {
-	// qsort(x,n,sizeof(float),compare_floats);
-	dim3 dimGrid(1, 1);
-	dim3 dimBlock(1, 1, 1);
-	
+int main(int argc, char** argv) {
+  // Declare and allocate host and device memory
 
-	int chunksize = (SHARED_MEM / 2) - 32;
+  // Host memory arrays
+  int n = 10;
+  float h = 2;
+  float x[n];
+  float y[n];
+  float averageArrays[n];   
+  memset(averageArrays, 0, sizeof(averageArrays));
+  for(int i = 0, j = n; i < n; i++, j++) {
+    x[i] = i + 1;
+    y[i] = j + 1;
+  }
 
-	float *xChunk;
-	float *yChunk;
-	float *mdev;
-	//min size of x is 512 bytes or 64 entries
-	int msize = chunksize * sizeof(float);
-	cudaMalloc((void **) &xChunk, 80);
-	cudaMalloc((void **) &yChunk, 80);
-	cudaMalloc((void **) &mdev, 80);
+  // Device Memory pointers
+  float *xchunk;
+  float *ychunk;
+  float *avgsPointer;
 
+  // Allocate memory on the device
+  cudaMalloc((void**) &xchunk, sizeof(float) * 100);
+  cudaMalloc((void**) &ychunk, sizeof(float) * 100);
+  cudaMalloc((void**) &avgsPointer, sizeof(float) * 100);
 
-	
+  // Transfer the host arrays to Device
+  cudaMemcpy(xchunk, x, sizeof(float) * n, cudaMemcpyHostToDevice);
+  cudaMemcpy(ychunk, y, sizeof(float) * n, cudaMemcpyHostToDevice);
+  cudaMemcpy(avgsPointer, averageArrays, sizeof(float)* n, cudaMemcpyHostToDevice);
 
-	for(int i = 0; i < n; i++) {
-		cudaMemcpy(xChunk, x, 80, cudaMemcpyHostToDevice);
-		cudaMemcpy(yChunk, y, 80, cudaMemcpyHostToDevice);
-		findY<<<dimGrid, dimBlock>>>(xChunk, yChunk, 10, h, x[i], i, &mdev[i]);
-	}
-	cudaMemcpy(m, mdev, 80, cudaMemcpyDeviceToHost);
-	cudaFree(xChunk);
-	cudaFree(yChunk);
-	cudaFree(mdev);
+  // Set up Parameters for threads structure
+  dim3 dimGrid(n, 1);
+  dim3 dimBlock(1, 1, 1);
 
-}
+  // Invoke the kernel
+  smoothc <<<1, n>>> (xchunk, ychunk, avgsPointer, n, h);
+  // Wait for kernel to finish()
+  cudaThreadSynchronize();
+  // Copy from device to host. 
+  cudaMemcpy(averageArrays, avgsPointer, sizeof(float)*n, cudaMemcpyDeviceToHost);
 
-
-
-int main (int argc, char** argv) {
-	float x[10] = {1,2,3,4,5,6,7,8,9,10};
-	float y[10] = {11,12,13,14,15,16,17,18,19,20};
-	float m[10];
-	for(int i = 0; i < 10; i++)
-		cout << m[i] << endl;
-	smoothc(x,y,m,10,3);
-	cout<<"**********RETURN VALUES:***********"<<endl;
-	for(int i = 0; i < 10; i++)
-		cout << m[i] << endl;
-	return 0;
-
+  for(int i = 0; i < n; i++) {
+    cout << averageArrays[i] << endl;
+  }
+  // Free memory
+  cudaFree(xchunk);
+  cudaFree(ychunk);
+  cudaFree(avgsPointer);
+  return 0;
 }
