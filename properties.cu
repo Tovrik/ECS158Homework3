@@ -16,6 +16,7 @@ void DisplayHeader()
    printf("total Const mem: %d\n", Props.totalConstMem);
    printf("Major number: %d\n", Props.major);
    printf("Minor number: %d\n", Props.minor);
+   printf("Total Global Memory: %d\n", Props.totalGlobalMem);
 }
 
 int main(int argc, char** argv) {

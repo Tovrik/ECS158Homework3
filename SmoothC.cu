@@ -39,20 +39,20 @@ int main(int argc, char** argv) {
   // Declare and allocate host and device memory
 
   // Host memory arrays
-  int n = 10000;
+  int n = 10;
   float h = 5;
   float x[n];
   float y[n];
   float averageArrays[n];   
-  memset(averageArrays, 0, sizeof(averageArrays));
+  //memset(averageArrays, 0, sizeof(averageArrays));
   for(int i = 0, j = n; i < n; i++, j++) {
     x[i] = i + 1;
     y[i] = j + 1;
   }
   // printf("x[0] = %f\n", x[0]);
-  // printf("x[2499] = %f\n", x[2499]);
+  // printf("x[2499] = %f\n", x[n - 1]);
   // printf("y[0] = %f\n", y[0]);
-  // printf("y[2499] = %f\n", y[2499]);
+  // printf("y[2499] = %f\n", y[n - 1]);
 
   // Device Memory pointers
   float *xchunk;
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 
   int totalBlocks = 0;
   int threads_per_block = 0;
-  int totalSharedMemProgram = Props.totalGlobalMem / 2;
+  double totalSharedMemProgram = Props.totalGlobalMem / 2;
   int remaining = (24 * n) + 16;
   int chunks = ceil((float) remaining / totalSharedMemProgram);
   int offset = 0;
