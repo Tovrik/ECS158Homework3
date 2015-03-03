@@ -7,44 +7,25 @@
 #include <thrust/copy.h>
 using namespace std;
 
-__global__ void smootht(float *x, float *y, float *m, int n, float h) {
+__global__ void doComputations(float *x, float *y, float *m, int n, float h) {
   int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-  //printf("threadIdx.x = %d\n", threadIdx.x);
-  //printf("blockDim.x = %d\n", blockDim.x);
 
   float sum = 0;
   int count = 0;
 
   for(int i = 0; i < n; i++) {
     if(fabsf(x[blockIndex] - x[i]) < h) {
-       //printf("x[blockIndex] = %d and x[i] = %d\n", x[blockIndex], x[i]);
        sum = sum + y[i];
        count = count + 1;
     }
   }
-  //__syncthreads(); 
-  //printf("sum = %f\n", sum);
-  //printf("count = %d\n", count);
   m[blockIndex] = sum / count;
 }
 
-int main (int argc, char** argv) {
+
+void smootht(float *x, float *y, float *m, int n, float h) {
   cudaDeviceProp Props;
   cudaGetDeviceProperties(&Props , 0);
-
-  int n = 10;
-  float h = 3;
-  // Host memory vectors
-  thrust:: host_vector<float> x(n);
-  thrust:: host_vector<float> y(n);
-  thrust:: host_vector<float> averageArrays(n);
-
-  // Populate the arrays
-  for(int i = 0, j = n; i < n; i++, j++) {
-    x[i] = i + 1;
-    y[i] = j + 1;
-  }
 
   int totalBlocks = 0;
   int threads_per_block = 0;
@@ -61,32 +42,55 @@ int main (int argc, char** argv) {
   printf("total blocks = %d\n", totalBlocks);
   printf("threads/block = %d\n", threads_per_block);
 
-
   // Print for testing purposes
-  cout << "x: " << endl;
-  thrust::copy(x.begin(), x.end(), std::ostream_iterator<float>(std::cout, "\n"));
-  cout << "\n\ny: " << endl;
-  thrust::copy(y.begin(), y.end(), std::ostream_iterator<float>(std::cout, "\n"));
+  // cout << "x: " << endl;
+  // thrust::copy(x.begin(), x.end(), std::ostream_iterator<float>(std::cout, "\n"));
+  // cout << "\n\ny: " << endl;
+  // thrust::copy(y.begin(), y.end(), std::ostream_iterator<float>(std::cout, "\n"));
 
   // Alocate vector on device
-  thrust:: device_vector<float> xchunk = x;
-  thrust:: device_vector<float> ychunk = y;
-  thrust:: device_vector<float> averageChunk = averageArrays;
+  thrust:: device_vector<float> xchunk(x, x+n);
+  thrust:: device_vector<float> ychunk(y, y+n);
+  thrust:: device_vector<float> averageChunk(m, m+n);
 
   float* xPointer = thrust::raw_pointer_cast( &xchunk[0] );
   float* yPointer = thrust::raw_pointer_cast( &ychunk[0] );
-  float* avgPointer = thrust::raw_pointer_cast( &averageChunk[0] );
+  float* avgPointer = thrust::raw_pointer_cast( &averageChunk[0] ); 
 
   // Invoke the kernel
-  smootht <<< totalBlocks, threads_per_block >>> (xPointer, yPointer, avgPointer, n, h);
+  doComputations <<< totalBlocks, threads_per_block >>> (xPointer, yPointer, avgPointer, n, h);
 
   cudaThreadSynchronize();
 
   // Copy from device back to host
-  thrust:: copy(averageChunk.begin(), averageChunk.end(), averageArrays.begin());
+  thrust:: copy(averageChunk.begin(), averageChunk.end(), m);
+}
 
-  cout << "\n Printing averageArray " << endl;
-  for(int i = 0; i < averageChunk.size(); i++) {
-    cout << averageChunk[i] << endl;
-  } 
+
+
+int main (int argc, char** argv) {
+  int n = 10;
+  float h = 2;
+  // Host memory vectors
+  thrust:: host_vector<float> xV(n);
+  thrust:: host_vector<float> yV(n);
+  thrust:: host_vector<float> averageArraysV(n);
+
+  // Populate the arrays
+  for(int i = 0, j = n; i < n; i++, j++) {
+    xV[i] = i + 1;
+    yV[i] = j + 1;
+  }
+
+  float* x = thrust::raw_pointer_cast( &xV[0] );
+  float* y = thrust::raw_pointer_cast( &yV[0] );
+  float* m = thrust::raw_pointer_cast( &averageArraysV[0] );
+
+  smootht(x, y, m, n, h);
+
+  cout << "\n\nAVERAGE ARRAYS CONTENTS: " << endl;
+  for(int i = 0; i < n; i++) {
+    cout << m[i] << endl;
+  }
+  return 0;
 }
