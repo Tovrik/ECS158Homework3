@@ -1,78 +1,114 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cuda.h>
 #include <iostream>
 #include <cmath>
-#include <cuda.h>
+#include <string.h>
 using namespace std;
 
-#define GRID_SIZE 32
-#define SHARED_MEM 16384
+__global__ void doComputations(float *x, float *y, float *m, int n, float h) {
+  int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-__global__ void findY(float *x, float *y, int n, float h, float z, int zLoc, float *returnVal) {
-	// int col = blockIdx.x * blockDim.x + threadIdx.x;
-	// int row = blockIdx.y * blockDim.y + threadIdx.y;
+  float sum = 0;
+  float count = 0;
 
-	__shared__ float sum;
-	sum = 0;
-	float absVal = 0;
-	int count = 0;
-	for(int i = 0; i < n; i++) {
-		absVal = abs(x[i] - z);
-		if(absVal < h) {
-			atomicAdd(&sum, y[zLoc]);
-		 	sum += y[zLoc];
-		 	count++;
-		}
-	}
-		*returnVal = sum/count;
-		sum = 0;
-		count = 0;
+  for(int i = 0; i < n; i++) {
+    if(fabsf(x[blockIndex] - x[i]) < h) {
+       sum = sum + y[i];
+       count = count + 1;
+    }
+  }
+  m[blockIndex] = sum / count;
 }
 
 void smoothc(float *x, float *y, float *m, int n, float h) {
-	// qsort(x,n,sizeof(float),compare_floats);
-	dim3 dimGrid(1, 1);
-	dim3 dimBlock(1, 1, 1);
-	
-	// Size of x and y: n / SHARED_MEM / 2 = 
-	// The rest of the params: - 32
-	// Combined this equals 16384 bytes
-	int chunksize = (SHARED_MEM / 2) - 32;
+  // Programatically determine the cuda Properties
+  cudaDeviceProp Props;
+  cudaGetDeviceProperties(&Props , 0);
+  // Declare and allocate host and device memory
+  // Device Memory pointers
+  float *xchunk;
+  float *ychunk;
+  float *avgsPointer;
 
-	float *xChunk;
-	float *yChunk;
-	//min size of x is 512 bytes or 64 entries
-	int msize = chunksize * sizeof(float);
-	cudaMalloc((void **) &xChunk, msize);
-	cudaMalloc((void **) &yChunk, msize);
-	// dst 		- Destination memory address
-	// src 		- Source memory address
-	// count 	- Size in bytes to copy
-	// kind 	- Type of transfer
-	// cudaMemcpy(dst, src, count, kind);
+  int totalBlocks = 0;
+  int threads_per_block = 0;
+  double totalGlobalMemProgram = Props.totalGlobalMem / 2;
+  int remaining = (24 * n) + 12;
+  int chunks = ceil((float) remaining / totalGlobalMemProgram);
+  int offset = 0;
+  bool it_fits = false;
 
-	
+  if (chunks == 1) it_fits = true;
 
-	for(int i = 0; i < n; i++) {
-		cudaMemcpy(xChunk, x, msize, cudaMemcpyHostToDevice);
-		cudaMemcpy(yChunk, y, msize, cudaMemcpyHostToDevice);
-		findY<<<dimGrid, dimBlock>>>(xChunk, yChunk, chunksize, h, x[i], i, &m[i]);
-	}
+  // Allocate memory on the device
+  cudaMalloc((void**) &xchunk, sizeof(float) * (n/chunks) );
+  cudaMalloc((void**) &ychunk, sizeof(float) * (n/chunks) );
+  cudaMalloc((void**) &avgsPointer, sizeof(float) * (n/chunks) );
 
-	cudaFree(xChunk);
-	cudaFree(yChunk);
+  if(n < (Props.maxThreadsPerBlock-1) ){
+    totalBlocks = 1;
+    threads_per_block = n;
+  }
+  else {
+    totalBlocks = (int)(ceil((float)n / (Props.maxThreadsPerBlock/2) ));
+    threads_per_block = Props.maxThreadsPerBlock / 2;
+  }
 
+  // printf("TOTAL GLOBAL MEMORY = %d\n",Props.totalGlobalMem);
+  // printf("chunks = %d\n", chunks);
+  // printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
+  // printf("total blocks = %d\n", totalBlocks);
+  // printf("threads/block = %d\n", threads_per_block);
+
+
+  // Transfer the host arrays to Device
+  while(1) {
+  cudaMemcpy(xchunk, &x[offset], sizeof(float) * (n/chunks), cudaMemcpyHostToDevice);
+  cudaMemcpy(ychunk, &y[offset], sizeof(float) * (n/chunks), cudaMemcpyHostToDevice);
+  cudaMemcpy(avgsPointer, &m[offset], sizeof(float)* (n/chunks), cudaMemcpyHostToDevice);
+
+  // Invoke the kernel
+  doComputations <<<totalBlocks, threads_per_block>>> (xchunk, ychunk, avgsPointer, n, h);
+  // Wait for kernel to finish()
+  cudaThreadSynchronize();
+  // Copy from device to host. 
+  cudaMemcpy(&m[offset], avgsPointer, sizeof(float)*(n/chunks), cudaMemcpyDeviceToHost);
+
+  offset += (n/chunks);
+  if(offset >= n || it_fits)
+    break;
+  }
+
+  // Free memory
+  cudaFree(xchunk);
+  cudaFree(ychunk);
+  cudaFree(avgsPointer);
 }
 
 
 
-int main (int argc, char** argv) {
-	float x[10] = {1,2,3,4,5,6,7,8,9,10};
-	float y[10] = {11,12,13,14,15,16,17,18,19,20};
-	float m[10];
-	smoothc(x,y,m,10,3);
-	for(int i = 0; i < 10; i++)
-		cout << m[i] << endl;
-	return 0;
+// int main(int argc, char** argv) {
+//   // Host memory arrays
+//   int n = 50000;
+//   float h = 2;
+//   // Allocate memory dynamically
+//   float* x = new float[n];
+//   float* y = new float[n];
+//   float* averageArrays = new float[n]; 
+//   //memset(averageArrays, 0, sizeof(averageArrays));
+//   for(int i = 0, j = n; i < n; i++, j++) {
+//     x[i] = i + 1;
+//     y[i] = j + 1;
+//   }
+//   smoothc(x, y, averageArrays, n, h);
 
-}
+//   for(int i = 0; i < n; i++) {
+//     cout << averageArrays[i] << "\n";
+//   }
+
+//   delete[] averageArrays;
+//   delete[] y;
+//   delete[] x;
+//   return 0;
+// }

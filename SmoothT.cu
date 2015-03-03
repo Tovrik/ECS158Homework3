@@ -11,7 +11,7 @@ __global__ void doComputations(float *x, float *y, float *m, int n, float h) {
   int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   float sum = 0;
-  int count = 0;
+  float count = 0;
 
   for(int i = 0; i < n; i++) {
     if(fabsf(x[blockIndex] - x[i]) < h) {
@@ -38,9 +38,9 @@ void smootht(float *x, float *y, float *m, int n, float h) {
     threads_per_block = Props.maxThreadsPerBlock / 2;
   }
 
-  printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
-  printf("total blocks = %d\n", totalBlocks);
-  printf("threads/block = %d\n", threads_per_block);
+  // printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
+  // printf("total blocks = %d\n", totalBlocks);
+  // printf("threads/block = %d\n", threads_per_block);
 
   // Print for testing purposes
   // cout << "x: " << endl;
@@ -68,29 +68,29 @@ void smootht(float *x, float *y, float *m, int n, float h) {
 
 
 
-int main (int argc, char** argv) {
-  int n = 10;
-  float h = 2;
-  // Host memory vectors
-  thrust:: host_vector<float> xV(n);
-  thrust:: host_vector<float> yV(n);
-  thrust:: host_vector<float> averageArraysV(n);
+// int main (int argc, char** argv) {
+//   int n = 50000;
+//   float h = 2;
+//   // Host memory vectors
+//   thrust:: host_vector<float> xV(n);
+//   thrust:: host_vector<float> yV(n);
+//   thrust:: host_vector<float> averageArraysV(n);
 
-  // Populate the arrays
-  for(int i = 0, j = n; i < n; i++, j++) {
-    xV[i] = i + 1;
-    yV[i] = j + 1;
-  }
+//   // Populate the arrays
+//   for(int i = 0, j = n; i < n; i++, j++) {
+//     xV[i] = i + 1;
+//     yV[i] = j + 1;
+//   }
 
-  float* x = thrust::raw_pointer_cast( &xV[0] );
-  float* y = thrust::raw_pointer_cast( &yV[0] );
-  float* m = thrust::raw_pointer_cast( &averageArraysV[0] );
+//   float* x = thrust::raw_pointer_cast( &xV[0] );
+//   float* y = thrust::raw_pointer_cast( &yV[0] );
+//   float* m = thrust::raw_pointer_cast( &averageArraysV[0] );
 
-  smootht(x, y, m, n, h);
+//   smootht(x, y, m, n, h);
 
-  cout << "\n\nAVERAGE ARRAYS CONTENTS: " << endl;
-  for(int i = 0; i < n; i++) {
-    cout << m[i] << endl;
-  }
-  return 0;
-}
+//   cout << "\n\nAVERAGE ARRAYS CONTENTS: " << endl;
+//   for(int i = 0; i < n; i++) {
+//     cout << m[i] << endl;
+//   }
+//   return 0;
+// }

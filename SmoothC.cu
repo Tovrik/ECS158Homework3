@@ -10,7 +10,7 @@ __global__ void doComputations(float *x, float *y, float *m, int n, float h) {
   int blockIndex = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   float sum = 0;
-  int count = 0;
+  float count = 0;
 
   for(int i = 0; i < n; i++) {
     if(fabsf(x[blockIndex] - x[i]) < h) {
@@ -34,7 +34,7 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
   int totalBlocks = 0;
   int threads_per_block = 0;
   double totalGlobalMemProgram = Props.totalGlobalMem / 2;
-  int remaining = (24 * n) + 16;
+  int remaining = (24 * n) + 12;
   int chunks = ceil((float) remaining / totalGlobalMemProgram);
   int offset = 0;
   bool it_fits = false;
@@ -55,11 +55,11 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
     threads_per_block = Props.maxThreadsPerBlock / 2;
   }
 
-  printf("TOTAL GLOBAL MEMORY = %d\n",Props.totalGlobalMem);
-  printf("chunks = %d\n", chunks);
-  printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
-  printf("total blocks = %d\n", totalBlocks);
-  printf("threads/block = %d\n", threads_per_block);
+  // printf("TOTAL GLOBAL MEMORY = %d\n",Props.totalGlobalMem);
+  // printf("chunks = %d\n", chunks);
+  // printf("MAX THREADS CUDA = %d\n", Props.maxThreadsPerBlock);
+  // printf("total blocks = %d\n", totalBlocks);
+  // printf("threads/block = %d\n", threads_per_block);
 
 
   // Transfer the host arrays to Device
@@ -88,27 +88,27 @@ void smoothc(float *x, float *y, float *m, int n, float h) {
 
 
 
-int main(int argc, char** argv) {
-  // Host memory arrays
-  int n = 10;
-  float h = 2;
-  // Allocate memory dynamically
-  float* x = new float[n];
-  float* y = new float[n];
-  float* averageArrays = new float[n]; 
-  //memset(averageArrays, 0, sizeof(averageArrays));
-  for(int i = 0, j = n; i < n; i++, j++) {
-    x[i] = i + 1;
-    y[i] = j + 1;
-  }
-  smoothc(x, y, averageArrays, n, h);
+// int main(int argc, char** argv) {
+//   // Host memory arrays
+//   int n = 50000;
+//   float h = 2;
+//   // Allocate memory dynamically
+//   float* x = new float[n];
+//   float* y = new float[n];
+//   float* averageArrays = new float[n]; 
+//   //memset(averageArrays, 0, sizeof(averageArrays));
+//   for(int i = 0, j = n; i < n; i++, j++) {
+//     x[i] = i + 1;
+//     y[i] = j + 1;
+//   }
+//   smoothc(x, y, averageArrays, n, h);
 
-  for(int i = 0; i < n; i++) {
-    cout << averageArrays[i] << endl;
-  }
+//   for(int i = 0; i < n; i++) {
+//     cout << averageArrays[i] << "\n";
+//   }
 
-  delete[] averageArrays;
-  delete[] y;
-  delete[] x;
-  return 0;
-}
+//   delete[] averageArrays;
+//   delete[] y;
+//   delete[] x;
+//   return 0;
+// }
