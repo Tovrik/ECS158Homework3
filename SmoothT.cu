@@ -3,37 +3,57 @@
 #include <iostream>
 #include <cmath>
 #include <thrust/host_vector.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/device_vector.h>
 #include <thrust/copy.h>
+#include <thrust/tuple.h>
+#include <thrust/count.h>
 using namespace std;
 
 struct finddiff {
-  __device__ float operator()(const float& x1, const float& x2)
+  const float a;
+  const float x2;
+
+  finddiff(float _a, float _x2) : a(_a), x2(_x2) {}
+
+  __device__ float operator()(const float& x1)
   {
-    return abs(x1 - x2);
+    return (abs(x1 - x2) < a) ? 1: 0;
   }
 };
-
 
 
 void smootht(float *x, float *y, float *m, int n, float h) {
   // Alocate vector on device
   thrust:: device_vector<float> xchunk(x, x+n);
   thrust:: device_vector<float> ychunk(y, y+n);
-  thrust:: device_vector<float> averageChunk(m, m+n);
+  thrust:: device_vector<float> averageChunk(n);
   thrust:: device_vector<float> dv(n);
 
-  cout << "x: " << endl;
-  thrust::copy(xchunk.begin(), xchunk.end(), std::ostream_iterator<float>(std::cout, "\n"));
+  for(int i = 0; i < n; i++) {
+  
+    thrust::transform(xchunk.begin(), xchunk.end(), dv.begin(), finddiff(h, xchunk[i]));
 
-  thrust:: device_vector<float> temp(n);
-  thrust:: fill(temp.begin(), temp.end(), x[0]);
-  thrust::transform(xchunk.begin(), xchunk.end(), temp.begin(), dv.begin(), finddiff());
+    // cout << "differences: " << endl;
+    // thrust::copy(dv.begin(), dv.end(), std::ostream_iterator<float>(std::cout, "\n"));
+    //cout << "xchunk[i] = " << xchunk[i] << endl;
+    float sum = 0;
+    // Count the number of 1s
+    int count = thrust::count(dv.begin(), dv.end(), 1);
 
-  cout << "differences: " << endl;
-  thrust::copy(dv.begin(), dv.end(), std::ostream_iterator<float>(std::cout, "\n"));
-
-
+    // Go through the differences vector and find all elements of 1
+    // And add those elements
+    for(int j = 0; j < dv.size(); j++) {
+      if(dv[j] == 1) {
+        sum = sum + ychunk[j];
+      }
+    }
+    averageChunk[i] = sum / count;
+  }
+  //cout << "averageChunk: " << endl;
+  //thrust::copy(averageChunk.begin(), averageChunk.end(), std::ostream_iterator<float>(std::cout, "\n"));
+  // Copy from device back to host
+  thrust:: copy(averageChunk.begin(), averageChunk.end(), m);
 }
 
 
@@ -54,9 +74,9 @@ int main(int argc, char** argv) {
   }
   smootht(x, y, averageArrays, n, h);
 
-  // for(int i = 0; i < n; i++) {
-  //   cout << averageArrays[i] << "\n";
-  // }
+  for(int i = 0; i < n; i++) {
+     cout << averageArrays[i] << "\n";
+  }
 
   delete[] averageArrays;
   delete[] y;
